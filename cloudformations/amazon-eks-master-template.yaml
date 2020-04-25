@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Nested EKS Stack
+
+
+Parameters:
+
+  # Bucket name where cloudformations are stored
+  BucketName:
+    Type: String
+    
+  # Parameters for EKS cluster
+  ClusterName:
+    Type: String
+  KubernetesVersion:
+    Type: String
+    AllowedValues: [ "1.14", "1.13", "1.12", "1.11" ]
+    Default: "1.14"
+
+  # Parameters for EKS Service Role
+  ClusterServiceRoleName:
+    Type: String
+    
+  # Parameters for VPC  
+  VpcBlock:
+    Type: String
+    Default: 192.168.0.0/16
+    Description: The CIDR range for the VPC. This should be a valid private (RFC 1918) CIDR range.
+  Subnet01Block:
+    Type: String
+    Default: 192.168.64.0/18
+    Description: CidrBlock for subnet 01 within the VPC
+  Subnet02Block:
+    Type: String
+    Default: 192.168.128.0/18
+    Description: CidrBlock for subnet 02 within the VPC
+  Subnet03Block:
+    Type: String
+    Default: 192.168.192.0/18
+    Description: CidrBlock for subnet 03 within the VPC. This is used only if the region has more than 2 AZs.
+    
+    # Parameters for NodeGroups
+  BootstrapArguments:
+    Type: String
+    Default: ""
+    Description: "Arguments to pass to the bootstrap script. See files/bootstrap.sh in https://github.com/awslabs/amazon-eks-ami"
+
+  KeyName:
+    Type: String
+    Description: The EC2 Key Pair to allow SSH access to the instances
+
+  NodeAutoScalingGroupDesiredCapacity:
+    Type: Number
+    Default: 2
+    Description: Desired capacity of Node Group ASG.
+
+  NodeAutoScalingGroupMaxSize:
+    Type: Number
+    Default: 3
+    Description: Maximum size of Node Group ASG. Set to at least 1 greater than NodeAutoScalingGroupDesiredCapacity.
+
+  NodeAutoScalingGroupMinSize:
+    Type: Number
+    Default: 1
+    Description: Minimum size of Node Group ASG.
+
+  NodeGroupName:
+    Type: String
+    Description: Unique identifier for the Node Group.
+
+  NodeImageId:
+    Type: String
+    Default: ""
+    Description: (Optional) Specify your own custom image ID. This value overrides any AWS Systems Manager Parameter Store value specified above.
+
+
+  NodeInstanceType:
+    Type: String
+    Default: t3.medium
+    ConstraintDescription: Must be a valid EC2 instance type
+    Description: EC2 instance type for the node instances
+
+  NodeVolumeSize:
+    Type: Number
+    Default: 20
+    Description: Node volume size
+    
+
+Resources:
+
+  VpcNetworking:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VpcBlock:
+          !Ref VpcBlock
+        Subnet01Block:
+          !Ref Subnet01Block
+        Subnet02Block:
+          !Ref Subnet02Block
+        Subnet03Block:
+          !Ref Subnet03Block
+        ClusterName:
+          !Ref ClusterName
+      TemplateURL: !Sub 'https://s3.amazonaws.com/${BucketName}/amazon-eks-vpc.yaml'
+  
+  EksServiceRole:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ClusterServiceRoleName:
+          !Ref ClusterServiceRoleName
+      TemplateURL: !Sub 'https://s3.amazonaws.com/${BucketName}/amazon-eks-cluster-service-role.yaml'
+
+  EksCluster:
+    DependsOn: [ VpcNetworking , EksServiceRole ]
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ClusterName:
+          !Ref ClusterName
+        SubnetIds:
+          !GetAtt [ VpcNetworking, Outputs.SubnetIds ]
+        RoleArn:
+          !GetAtt [ EksServiceRole, Outputs.ControlPlaneRoleArn ]
+        KubernetesVersion:
+          !Ref KubernetesVersion
+      TemplateURL: !Sub 'https://s3.amazonaws.com/${BucketName}/amazon-eks-cluster.yaml'
+
+   EksNodegroup:
+     DependsOn: [ VpcNetworking , EksCluster ]
+     Type: AWS::CloudFormation::Stack
+     Properties:
+       Parameters:
+         BootstrapArguments:
+           !Ref BootstrapArguments      
+         ClusterControlPlaneSecurityGroup:
+           !GetAtt [ VpcNetworking, Outputs.SecurityGroups ]      
+         ClusterName:
+           !Ref ClusterName      
+         KeyName:
+           !Ref KeyName      
+         NodeAutoScalingGroupDesiredCapacity:
+           !Ref NodeAutoScalingGroupDesiredCapacity      
+         NodeAutoScalingGroupMaxSize:
+           !Ref NodeAutoScalingGroupMaxSize
+         NodeAutoScalingGroupMinSize:
+           !Ref NodeAutoScalingGroupMinSize      
+         NodeGroupName:
+           !Ref NodeGroupName      
+         NodeImageId:
+           !Ref NodeImageId      
+         NodeInstanceType:
+           !Ref NodeInstanceType      
+         NodeVolumeSize:
+           !Ref NodeVolumeSize      
+         Subnets:
+           !GetAtt [ VpcNetworking, Outputs.SubnetIds ]      
+         VpcId:
+           !GetAtt [ VpcNetworking, Outputs.VpcId ]   
+       TemplateURL: !Sub 'https://s3.amazonaws.com/${BucketName}/amazon-eks-nodegroup.yaml'
+   
+
+Outputs:
+
+  ClusterEndpoint:
+    Description: API Endpoint for EKS Cluster
+    Value: !GetAtt [ EksCluster, Outputs.EKSEndpoint ]

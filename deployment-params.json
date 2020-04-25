@@ -1,0 +1,46 @@
+[
+	{
+		"ParameterKey": "BucketName",
+		"ParameterValue": "anujekspocbuckettest"
+	},
+	{
+		"ParameterKey": "VpcBlock",
+		"ParameterValue": "192.168.0.0/16"
+	},
+	{
+		"ParameterKey": "Subnet01Block",
+		"ParameterValue": "192.168.64.0/18"
+	},
+	{
+		"ParameterKey": "Subnet02Block",
+		"ParameterValue": "192.168.128.0/18"
+	},
+	{
+		"ParameterKey": "Subnet03Block",
+		"ParameterValue": "192.168.192.0/18"
+	},
+	{
+		"ParameterKey": "ClusterName",
+		"ParameterValue": "eks-poc-cluster"
+	},
+	{
+		"ParameterKey": "KubernetesVersion",
+		"ParameterValue": "1.14"
+	},
+	{
+		"ParameterKey": "ClusterServiceRoleName",
+		"ParameterValue": "eks-cluster-service-role"
+	},
+	{
+		"ParameterKey": "NodeGroupName",
+		"ParameterValue": "eks-poc-nodegroup"
+	},
+	{
+		"ParameterKey": "NodeImageId",
+		"ParameterValue": "ami-0726488afbd16de79"
+	},
+	{
+		"ParameterKey": "KeyName",
+		"ParameterValue": "ashukla"
+	}
+]

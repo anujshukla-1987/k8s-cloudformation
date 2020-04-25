@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Deploys the EKS control plane"
+
+Parameters:
+  ClusterName:
+    Type: String
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  RoleArn:
+    Type: String
+  KubernetesVersion:
+    Type: String
+    AllowedValues: [ "1.14", "1.13", "1.12", "1.11" ]
+    Default: "1.14"  
+
+Resources:
+
+  EKS:
+    Type: "AWS::EKS::Cluster"
+    Properties:
+      Name: !Ref ClusterName
+      ResourcesVpcConfig:
+        SubnetIds: !Ref SubnetIds
+      RoleArn: !Ref RoleArn
+      Version: !Ref KubernetesVersion
+      
+Outputs:
+
+  EKSEndpoint:
+    Value: !GetAtt EKS.Endpoint
